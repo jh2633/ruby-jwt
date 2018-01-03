@@ -7,7 +7,7 @@ class JwtAuth
 
   def call env
     begin
-      options = { algorithm: 'HS256', iss: ENV['JWT_ISSUER'] }
+      options = { algorithm: 'RS256', iss: ENV['JWT_ISSUER'] }
       bearer = env.fetch('HTTP_AUTHORIZATION', '').slice(7..-1)
       payload, header = JWT.decode bearer, ENV['JWT_SECRET'], true, options
 
@@ -26,4 +26,20 @@ class JwtAuth
     end
   end
 
+  def self.jwks_hash
+    #see https://github.com/auth0-samples/auth0-rubyonrails-api-samples/issues/4 for source
+    jwks_raw = Net::HTTP.get URI("where jwks are stored")
+    jwks_keys = Array(JSON.parse(jwks_raw)['keys'])
+    Hash[
+      jwks_keys
+      .map do |k|
+        [
+          k['kid'],
+          OpenSSL::X509::Certificate.new(
+            Base64.decode64(k['x5c'].first)
+          ).public_key
+        ]
+      end
+    ]
+  end
 end
